@@ -4,7 +4,7 @@ const $ = (s) => document.querySelector(s);
 const SPORTS = ['篮球', '羽毛球', '足球', '网球', '跑步', '乒乓球', '瑜伽', '其他'];
 const CITIES = ['北京', '上海', '广州', '深圳', '成都', '杭州', '武汉', '南京', '其他'];
 let me = JSON.parse(localStorage.getItem('yueqiu_user') || 'null');
-let state = { games: [], friends: [], threads: [] };
+let state = { games: [], friends: [], threads: [], invites: [] };
 let currentSport = '全部';
 let currentGameId = null;
 let currentGameJoined = false;
@@ -96,7 +96,7 @@ document.querySelectorAll('#tabbar button').forEach((b) => b.onclick = () => { s
 async function loadAll() {
   try {
     const j = await api(`/api/state?userId=${me.id}`);
-    state = j; renderGames(); renderFriends(); renderThreads(); renderMyGames();
+    state = j; renderGames(); renderFriends(); renderThreads(); renderInvites(); renderMyGames();
   } catch (e) { toast(e.message); }
 }
 function filteredGames() {
@@ -138,7 +138,10 @@ async function openDetail(gameId) {
     <p class="hint">${g.note || ''}</p>
     <div class="spots">已报名 ${g.joinedCount}/${g.totalSpots} 人</div>
     <p>成员：${g.participants.map((p) => p.nickname).join('、') || '暂无'}</p>
-    <button class="primary" id="joinBtn">${g.joinedByMe ? '取消报名' : (g.joinedCount >= g.totalSpots ? '已满员' : '立即报名')}</button>`;
+    <button class="primary" id="joinBtn">${g.joinedByMe ? '取消报名' : (g.joinedCount >= g.totalSpots ? '已满员' : '立即报名')}</button>
+    ${g.joinedByMe ? `<div class="invite-box"><label>邀请球友 <select id="inviteFriendSel">${(state.friends || []).map((f) => `<option>${f.nickname}</option>`).join('')}</select></label>
+    <button id="inviteSendBtn">发邀请</button><span id="inviteMsg" class="hint"></span>
+    ${(state.friends || []).length ? '' : '<p class="hint">先去「球友」页加好友，再来邀请。</p>'}</div>` : ''}`;
   $('#chatList').innerHTML = msgs.messages.map((m) => `<div class="msg"><b>${m.nickname}：</b>${m.text}</div>`).join('') || '<p class="hint">群里还没有消息。</p>';
   // 没报名的人看得到群聊，但发不了言：直接在输入框上方写清楚，而不是点了发送才闪一下报错
   currentGameJoined = !!g.joinedByMe;
@@ -155,6 +158,20 @@ async function openDetail(gameId) {
       toast(g.joinedByMe ? '已取消报名' : '报名成功'); loadAll(); openDetail(gameId);
     } catch (e) { toast(e.message); }
   };
+  const inviteBtn = $('#inviteSendBtn');
+  if (inviteBtn) {
+    inviteBtn.onclick = async () => {
+      const nickname = $('#inviteFriendSel').value;
+      const msg = $('#inviteMsg');
+      inviteBtn.disabled = true;
+      try {
+        await api('/api/invites', { method: 'POST', body: JSON.stringify({ userId: me.id, nickname, gameId }) });
+        msg.textContent = `邀请已发给 ${nickname}，对方在「消息」里能看到。`;
+        toast('邀请已发出');
+      } catch (e) { msg.textContent = e.message; toast(e.message); }
+      inviteBtn.disabled = false;
+    };
+  }
 }
 $('#detailClose').onclick = () => { $('#detail').hidden = true; };
 $('#detailBack').onclick = () => { $('#detail').hidden = true; };
@@ -225,6 +242,22 @@ $('#addFriendBtn').onclick = async () => {
 };
 
 // ---------- 消息 / 我的 ----------
+// 收到的站内邀请：点“进入球局”打开局详情，报名后邀请自动消失
+function renderInvites() {
+  const list = state.invites || [];
+  $('#inviteList').innerHTML = list.map((inv) =>
+    `<div class="card" data-inv="${inv.id}"><h3>🏀 ${inv.fromNickname} 邀请你加入「${inv.game.title}」</h3><div class="meta">${inv.game.date} ${inv.game.timeLabel} · ${inv.game.venue} · ${inv.game.sport}<br>已报名 ${inv.game.joinedCount}/${inv.game.totalSpots} 人</div>
+    <div style="margin-top:10px;display:flex;gap:8px;"><button class="primary" data-a="enter">进入球局</button><button data-a="dismiss">忽略</button></div></div>`).join('')
+    || '<p class="hint">暂时没有人邀请你。</p>';
+  document.querySelectorAll('#inviteList [data-inv]').forEach((el) => {
+    const inv = list.find((x) => x.id === el.dataset.inv);
+    el.querySelector('[data-a="enter"]').onclick = () => { showView('discover'); openDetail(inv.gameId); };
+    el.querySelector('[data-a="dismiss"]').onclick = async () => {
+      await api(`/api/invites/${inv.id}/dismiss`, { method: 'POST', body: JSON.stringify({ userId: me.id }) });
+      loadAll();
+    };
+  });
+}
 function renderThreads() {
   $('#threadList').innerHTML = state.threads.map((t) =>
     `<div class="card game-card" data-g="${t.gameId}"><h3>${t.title}</h3><div class="meta">${t.lastMessage || '还没有消息'}</div></div>`).join('')

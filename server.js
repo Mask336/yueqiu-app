@@ -17,7 +17,7 @@ const CITIES = ['北京', '上海', '广州', '深圳', '成都', '杭州', '武
 
 // ---------- 数据库：data.json，启动时为空，无任何预置假人、假局 ----------
 function emptyDb() {
-  return { users: [], friends: [], games: [], participants: [], messages: [] };
+  return { users: [], friends: [], games: [], participants: [], messages: [], invites: [] };
 }
 function loadDb() {
   try {
@@ -120,7 +120,15 @@ async function handleApi(req, res, url) {
       const last = msgs[msgs.length - 1] || null;
       return { gameId: g.id, title: g.title, lastMessage: last ? last.text : '', lastAt: last ? last.createdAt : g.createdAt };
     });
-    return sendJson(res, 200, { ok: true, games, friends, threads, sports: SPORTS, cities: CITIES });
+    // 收到的邀请：按昵称匹配（昵称是注册时填的，须与邀请时填的一致）
+    const meUser = db.users.find((u) => u.id === meId);
+    const invites = (meUser ? db.invites.filter((i) => i.status === 'pending' && i.toNickname === meUser.nickname) : [])
+      .map((i) => {
+        const g = db.games.find((x) => x.id === i.gameId);
+        if (!g) return null;
+        return { id: i.id, gameId: i.gameId, fromNickname: i.fromNickname, toNickname: i.toNickname, createdAt: i.createdAt, game: gameView(db, g, meId) };
+      }).filter(Boolean);
+    return sendJson(res, 200, { ok: true, games, friends, threads, invites, sports: SPORTS, cities: CITIES });
   }
 
   // ---- 局：列表 / 详情 / 新建 ----
@@ -184,6 +192,8 @@ async function handleApi(req, res, url) {
       const count = db.participants.filter((p) => p.gameId === gameId).length;
       if (count >= g.totalSpots) return sendJson(res, 400, { ok: false, error: '人数已满' });
       db.participants.push({ gameId, userId: user.id, joinedAt: nowIso() });
+      // 报名成功 = 接受了这局的邀请，邀请不再出现在消息里
+      db.invites.forEach((i) => { if (i.gameId === gameId && i.toNickname === user.nickname && i.status === 'pending') i.status = 'accepted'; });
     } else {
       if (idx < 0) return sendJson(res, 200, { ok: true, game: gameView(db, g, user.id), already: true });
       if (g.hostId === user.id) return bad(res, '组织者不能取消报名，可删除本局或转让给他人');
@@ -247,6 +257,43 @@ async function handleApi(req, res, url) {
     db.games = db.games.filter((x) => x.id !== gameId);
     db.participants = db.participants.filter((p) => p.gameId !== gameId);
     db.messages = db.messages.filter((m) => m.gameId !== gameId);
+    db.invites = db.invites.filter((i) => i.gameId !== gameId);
+    saveDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
+  // ---- 站内邀请：发邀请 / 忽略邀请 ----
+  // 邀请按昵称投递：对方用同一个昵称注册后，就能在“消息”里看到这条邀请，点进去报名。
+  // 昵称不唯一，重名的人会同时看到同一条邀请，小圈子试用时请用不容易重名的昵称。
+  if (url.pathname === '/api/invites' && req.method === 'POST') {
+    const b = await readBody(req);
+    const from = db.users.find((u) => u.id === b.userId);
+    if (!from) return bad(res, '请先完善个人资料（登录）');
+    const g = db.games.find((x) => x.id === b.gameId);
+    if (!g) return sendJson(res, 404, { ok: false, error: '局不存在' });
+    const isMember = db.participants.some((p) => p.gameId === g.id && p.userId === from.id);
+    if (!isMember) return sendJson(res, 403, { ok: false, error: '只有本局成员才能邀请别人' });
+    const toNickname = str(b.nickname, 20);
+    if (!toNickname) return bad(res, '请填写要邀请的好友昵称');
+    if (toNickname === from.nickname) return bad(res, '不能邀请自己');
+    const target = db.users.find((u) => u.nickname === toNickname);
+    if (!target) return sendJson(res, 404, { ok: false, error: '还没找到叫这个昵称的人，对方要先打开 App 注册这个昵称' });
+    if (db.participants.some((p) => p.gameId === g.id && p.userId === target.id)) return bad(res, '对方已经在这局里了');
+    const dup = db.invites.find((i) => i.gameId === g.id && i.fromUserId === from.id && i.toNickname === toNickname && i.status === 'pending');
+    if (dup) return sendJson(res, 200, { ok: true, invite: dup, already: true });
+    const invite = { id: newId(), gameId: g.id, fromUserId: from.id, fromNickname: from.nickname, toNickname, status: 'pending', createdAt: nowIso() };
+    db.invites.push(invite);
+    saveDb(db);
+    return sendJson(res, 200, { ok: true, invite });
+  }
+  const inviteMatch = url.pathname.match(/^\/api\/invites\/([^/]+)\/dismiss$/);
+  if (inviteMatch && req.method === 'POST') {
+    const b = await readBody(req);
+    const inv = db.invites.find((i) => i.id === inviteMatch[1]);
+    if (!inv) return sendJson(res, 404, { ok: false, error: '邀请不存在' });
+    const me = db.users.find((u) => u.id === b.userId);
+    if (!me || (inv.toNickname !== me.nickname && inv.fromUserId !== me.id)) return sendJson(res, 403, { ok: false, error: '没有权限处理这条邀请' });
+    inv.status = 'dismissed';
     saveDb(db);
     return sendJson(res, 200, { ok: true });
   }
