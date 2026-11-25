@@ -25,6 +25,13 @@ async function api(path, opts = {}) {
   if (!j.ok) throw new Error(j.error || '请求失败');
   return j;
 }
+// 场馆 → 高德地图搜索链接（国内用高德；手机装了高德 App 会直接打开 App，没装就打开网页版地图）
+function mapUrl(venue, city) {
+  return 'https://uri.amap.com/search?keyword=' + encodeURIComponent([venue, city].filter(Boolean).join(' '));
+}
+function venueLink(g) {
+  return `<a class="venue-link" href="${mapUrl(g.venue, g.city)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍${g.venue}</a>`;
+}
 function chipRow(el, items, selected, onPick) {
   el.innerHTML = '';
   items.forEach((it) => {
@@ -117,7 +124,7 @@ function renderGames() {
     el.className = 'card game-card';
     const pct = Math.round((g.joinedCount / g.totalSpots) * 100);
     el.innerHTML = `<h3>${g.title}</h3>
-      <div class="meta"><span class="tag">${g.sport}</span>${g.date} ${g.timeLabel}<br>${g.venue} · ${g.city} ${g.district || ''}<br>组织者：${g.hostNickname} · ${g.feeText || '费用待定'}</div>
+      <div class="meta"><span class="tag">${g.sport}</span>${g.date} ${g.timeLabel}<br>${venueLink(g)} · ${g.city} ${g.district || ''}<br>组织者：${g.hostNickname} · ${g.feeText || '费用待定'}</div>
       <div class="spots">已报名 ${g.joinedCount}/${g.totalSpots} 人${g.joinedByMe ? ' · 你已报名' : ''}</div>
       <div class="bar"><i style="width:${pct}%"></i></div>`;
     el.onclick = () => openDetail(g.id);
@@ -134,7 +141,7 @@ async function openDetail(gameId) {
   const g = j.game;
   const msgs = await api(`/api/games/${gameId}/messages`);
   $('#detailContent').innerHTML = `<h2>${g.title}</h2>
-    <div class="meta"><span class="tag">${g.sport}</span>${g.date} ${g.timeLabel}<br>${g.venue} · ${g.city} ${g.district || ''}<br>组织者：${g.hostNickname} · ${g.feeText || ''} · ${g.level || ''}</div>
+    <div class="meta"><span class="tag">${g.sport}</span>${g.date} ${g.timeLabel}<br>${venueLink(g)} · ${g.city} ${g.district || ''}<br>组织者：${g.hostNickname} · ${g.feeText || ''} · ${g.level || ''}</div>
     <p class="hint">${g.note || ''}</p>
     <div class="spots">已报名 ${g.joinedCount}/${g.totalSpots} 人</div>
     <p>成员：${g.participants.map((p) => p.nickname).join('、') || '暂无'}</p>
@@ -203,6 +210,15 @@ $('#chatSend').onclick = async () => {
 };
 
 // ---------- 发起 ----------
+// 填场馆时实时更新“在高德地图中查看”链接，点开就能确认是不是那个地方
+function updateVenueMapLink() {
+  const link = $('#venueMapLink');
+  const venue = $('#cVenue').value.trim();
+  link.hidden = !venue;
+  if (venue) link.href = mapUrl(venue, $('#cCity').value.trim());
+}
+$('#cVenue').addEventListener('input', updateVenueMapLink);
+$('#cCity').addEventListener('input', updateVenueMapLink);
 $('#createBtn').onclick = async () => {
   try {
     const j = await api('/api/games', { method: 'POST', body: JSON.stringify({
@@ -267,7 +283,7 @@ function renderThreads() {
 function renderMyGames() {
   const mine = state.games.filter((g) => g.hostId === me.id || g.joinedByMe);
   $('#myGames').innerHTML = mine.map((g) =>
-    `<div class="card game-card" data-g="${g.id}"><h3>${g.title}</h3><div class="meta">${g.date} ${g.timeLabel} · ${g.venue}<br>已报名 ${g.joinedCount}/${g.totalSpots} 人${g.hostId === me.id ? ' · 我组织的' : ''}</div></div>`).join('')
+    `<div class="card game-card" data-g="${g.id}"><h3>${g.title}</h3><div class="meta">${g.date} ${g.timeLabel} · ${venueLink(g)}<br>已报名 ${g.joinedCount}/${g.totalSpots} 人${g.hostId === me.id ? ' · 我组织的' : ''}</div></div>`).join('')
     || '<p class="hint">你还没有参加任何局。</p>';
   document.querySelectorAll('#myGames .game-card').forEach((el) => el.onclick = () => openDetail(el.dataset.g));
 }

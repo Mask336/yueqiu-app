@@ -56,3 +56,5 @@ button.primary:disabled { opacity: .6; }
 .invite-box select { flex: 1; min-width: 120px; }
 .invite-box button { background: #b9e62e; border: 0; border-radius: 10px; padding: 9px 14px; font-weight: 700; }
 .invite-box button:disabled { opacity: .6; }
+.venue-link { color: #b9e62e; text-decoration: underline; }
+a.venue-link { display: inline-block; margin: 2px 0 8px; }
