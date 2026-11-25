@@ -42,6 +42,8 @@ function fillCities(sel, value) {
 // ---------- 登录 / 资料 ----------
 function showSetup() {
   $('#view-setup').hidden = false; $('#main').hidden = true; $('#tabbar').hidden = true;
+  $('#setupNickname').value = ''; $('#setupIdentity').value = '';
+  setupSports = new Set(); clearSetupError();
   fillCities($('#setupCity'), '北京');
   renderSetupSports();
 }
@@ -155,6 +157,15 @@ async function openDetail(gameId) {
   };
 }
 $('#detailClose').onclick = () => { $('#detail').hidden = true; };
+$('#detailBack').onclick = () => { $('#detail').hidden = true; };
+// 点弹窗外面的暗色区域也能关掉，不会被卡在群聊里
+$('#detail').addEventListener('click', (e) => { if (e.target === $('#detail')) $('#detail').hidden = true; });
+// “我的”页退出登录：清掉本机保存的资料，回到最初的介绍页
+$('#logoutBtn').onclick = () => {
+  if (!confirm('退出后要重新填昵称才能进来，确定吗？')) return;
+  localStorage.removeItem('yueqiu_user'); me = null;
+  $('#detail').hidden = true; showSetup();
+};
 $('#chatSend').onclick = async () => {
   const text = $('#chatInput').value.trim();
   if (!text || !currentGameId) return;
