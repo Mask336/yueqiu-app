@@ -1,0 +1,1 @@
+{"description":"约球运动 App：多人共用的网页版，邀请朋友、同学打球和运动。共享后端 + JSON 文件数据库。","engines":{"node":">=18"},"license":"MIT","main":"server.js","name":"yueqiu-app","scripts":{"start":"node server.js"},"version":"1.0.0"}

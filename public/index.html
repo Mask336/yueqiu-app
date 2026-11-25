@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>约球 · 找朋友打球运动</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="logo">🏀 约球</div>
+    <div class="city" id="myCity">未登录</div>
+  </header>
+
+  <!-- 登录 / 资料页：首次打开先填昵称、城市、运动 -->
+  <section id="view-setup" class="view">
+    <h1>先介绍一下你自己</h1>
+    <p class="hint">不用手机号、不用密码，填个昵称就能和朋友一起约球。资料会保存在后端，大家都能看到你的昵称。</p>
+    <label>昵称 * <input id="setupNickname" maxlength="20" placeholder="比如：阿哲"></label>
+    <label>城市 *
+      <select id="setupCity"></select>
+    </label>
+    <label>身份 <input id="setupIdentity" maxlength="20" placeholder="比如：同学 / 朋友 / 同事"></label>
+    <div class="field">常玩运动 * <div class="chips" id="setupSports"></div></div>
+    <button class="primary" id="setupSave">开始约球</button>
+    <p class="hint small">已有资料？换设备后重新填一次昵称即可（同一昵称会新建一个账号）。</p>
+  </section>
+
+  <main id="main" hidden>
+    <!-- 发现 -->
+    <section id="view-discover" class="view">
+      <div class="search-row">
+        <input id="searchInput" placeholder="搜标题、场馆…">
+        <select id="cityFilter"></select>
+      </div>
+      <div class="chips" id="sportFilter"></div>
+      <div id="gameList" class="game-list"></div>
+      <p id="emptyGames" class="hint" hidden>这里还是空的 —— 去「发起」建第一局吧。</p>
+    </section>
+
+    <!-- 发起 -->
+    <section id="view-create" class="view" hidden>
+      <h1>发起约球</h1>
+      <label>标题 * <input id="cTitle" maxlength="60" placeholder="比如：周六上午羽毛球双打"></label>
+      <label>运动 * <select id="cSport"></select></label>
+      <div class="row2">
+        <label>日期 * <input id="cDate" type="date"></label>
+        <label>时间 * <input id="cTime" placeholder="比如：19:30–21:00"></label>
+      </div>
+      <label>场馆 / 地点 * <input id="cVenue" maxlength="60" placeholder="比如：朝阳公园篮球场"></label>
+      <div class="row2">
+        <label>城市 <input id="cCity" maxlength="20"></label>
+        <label>总人数 * <input id="cSpots" type="number" min="2" max="100" value="6"></label>
+      </div>
+      <label>费用 <input id="cFee" maxlength="40" placeholder="比如：场地AA · 约15元"></label>
+      <label>水平 <input id="cLevel" maxlength="20" placeholder="比如：不限水平"></label>
+      <label>备注 <textarea id="cNote" maxlength="300" placeholder="集合点、带什么、取消规则…"></textarea></label>
+      <button class="primary" id="createBtn">发布这局</button>
+    </section>
+
+    <!-- 球友 -->
+    <section id="view-friends" class="view" hidden>
+      <h1>我的球友</h1>
+      <p class="hint">名单是空的——只有你亲手加进来的人才会出现在这里。</p>
+      <div class="card">
+        <label>昵称 * <input id="fNickname" maxlength="20" placeholder="朋友或同学的昵称"></label>
+        <label>关系 <input id="fRelation" maxlength="20" placeholder="比如：同学 / 朋友"></label>
+        <div class="field">常玩运动 <div class="chips" id="fSports"></div></div>
+        <button class="primary" id="addFriendBtn">加为球友</button>
+      </div>
+      <div id="friendList"></div>
+    </section>
+
+    <!-- 消息 -->
+    <section id="view-messages" class="view" hidden>
+      <h1>消息</h1>
+      <p class="hint">只显示你参加或组织的局的群聊。</p>
+      <div id="threadList"></div>
+    </section>
+
+    <!-- 我的 -->
+    <section id="view-my" class="view" hidden>
+      <h1>我的资料</h1>
+      <label>昵称 * <input id="myNickname" maxlength="20"></label>
+      <label>城市 * <select id="myCitySel"></select></label>
+      <label>身份 <input id="myIdentity" maxlength="20"></label>
+      <div class="field">常玩运动 * <div class="chips" id="mySports"></div></div>
+      <button class="primary" id="saveProfileBtn">保存资料</button>
+      <h2>我的局</h2>
+      <div id="myGames"></div>
+    </section>
+
+    <!-- 局详情（弹窗） -->
+    <div id="detail" class="modal" hidden>
+      <div class="modal-body">
+        <button class="close" id="detailClose">✕</button>
+        <div id="detailContent"></div>
+        <h3>群聊</h3>
+        <div id="chatList" class="chat"></div>
+        <div class="chat-send">
+          <input id="chatInput" maxlength="500" placeholder="在群里说点什么…">
+          <button id="chatSend">发送</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <nav id="tabbar" hidden>
+    <button data-view="discover" class="active">🔍 发现</button>
+    <button data-view="create">➕ 发起</button>
+    <button data-view="friends">👥 球友</button>
+    <button data-view="messages">💬 消息</button>
+    <button data-view="my">🙋 我的</button>
+  </nav>
+</div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
