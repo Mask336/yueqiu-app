@@ -45,3 +45,5 @@ button { font-size: 15px; cursor: pointer; }
 .friend-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .friend-row button { padding: 7px 12px; border-radius: 999px; border: 1px solid #2a3a2e; background: #111c2e; color: #fff; }
 .friend-row button.invited { background: #b9e62e; color: #0b1220; border-color: #b9e62e; font-weight: 700; }
+.error { color: #ff8a80; font-size: 14px; margin: 8px 0 0; }
+button.primary:disabled { opacity: .6; }

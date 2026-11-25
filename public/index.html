@@ -22,8 +22,9 @@
       <select id="setupCity"></select>
     </label>
     <label>身份 <input id="setupIdentity" maxlength="20" placeholder="比如：同学 / 朋友 / 同事"></label>
-    <div class="field">常玩运动 * <div class="chips" id="setupSports"></div></div>
+    <div class="field">常玩运动 * <span class="hint small">点一下选，可多选</span><div class="chips" id="setupSports"></div><span id="setupSportsPicked" class="hint small"></span></div>
     <button class="primary" id="setupSave">开始约球</button>
+    <p id="setupError" class="error" hidden></p>
     <p class="hint small">已有资料？换设备后重新填一次昵称即可（同一昵称会新建一个账号）。</p>
   </section>
 

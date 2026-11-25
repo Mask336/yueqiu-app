@@ -11,8 +11,13 @@ let setupSports = new Set(), mySports = new Set(), friendSports = new Set();
 
 function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, 2200);
+  setTimeout(() => { t.style.display = 'none'; }, 4000);
 }
+// 资料页的常驻错误提示：一直显示，直到用户改对为止（不再只靠一闪而过的 toast）
+function showSetupError(msg) {
+  const e = $('#setupError'); e.textContent = msg; e.hidden = false;
+}
+function clearSetupError() { $('#setupError').hidden = true; }
 async function api(path, opts = {}) {
   const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
   const j = await r.json();
@@ -39,7 +44,11 @@ function showSetup() {
   fillCities($('#setupCity'), '北京');
   renderSetupSports();
 }
-function renderSetupSports() { chipRow($('#setupSports'), SPORTS, setupSports, (s) => { setupSports.has(s) ? setupSports.delete(s) : setupSports.add(s); renderSetupSports(); }); }
+function renderSetupSports() {
+  chipRow($('#setupSports'), SPORTS, setupSports, (s) => { setupSports.has(s) ? setupSports.delete(s) : setupSports.add(s); renderSetupSports(); });
+  $('#setupSportsPicked').textContent = setupSports.size ? '已选：' + [...setupSports].join('、') : '';
+  if (setupSports.size) clearSetupError();
+}
 function renderMySports() { chipRow($('#mySports'), SPORTS, mySports, (s) => { mySports.has(s) ? mySports.delete(s) : mySports.add(s); renderMySports(); }); }
 function renderFriendSports() { chipRow($('#fSports'), SPORTS, friendSports, (s) => { friendSports.has(s) ? friendSports.delete(s) : friendSports.add(s); renderFriendSports(); }); }
 
@@ -49,11 +58,18 @@ async function saveProfile(data) {
   localStorage.setItem('yueqiu_user', JSON.stringify(me));
   return me;
 }
+$('#setupNickname').addEventListener('input', () => { if ($('#setupNickname').value.trim()) clearSetupError(); });
 $('#setupSave').onclick = async () => {
+  // 先在本地校验：缺什么就直接在按钮下面写清楚，不发请求、不静默失败
+  const btn = $('#setupSave');
+  if (!$('#setupNickname').value.trim()) { showSetupError('请先填一个昵称，再点“开始约球”。'); $('#setupNickname').focus(); return; }
+  if (!setupSports.size) { showSetupError('请点一下上面的“常玩运动”，至少选一项，再点“开始约球”。'); return; }
+  btn.disabled = true; btn.textContent = '正在进入…';
   try {
     await saveProfile({ nickname: $('#setupNickname').value, city: $('#setupCity').value, identity: $('#setupIdentity').value, sports: [...setupSports] });
-    enterApp(); toast('欢迎加入，' + me.nickname);
-  } catch (e) { toast(e.message); }
+    clearSetupError(); enterApp(); toast('欢迎加入，' + me.nickname);
+  } catch (e) { showSetupError(e.message || '没能保存，请检查网络后重试。'); toast(e.message); }
+  btn.disabled = false; btn.textContent = '开始约球';
 };
 
 // ---------- 进入主界面 ----------
