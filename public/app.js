@@ -7,6 +7,7 @@ let me = JSON.parse(localStorage.getItem('yueqiu_user') || 'null');
 let state = { games: [], friends: [], threads: [] };
 let currentSport = '全部';
 let currentGameId = null;
+let currentGameJoined = false;
 let setupSports = new Set(), mySports = new Set(), friendSports = new Set();
 
 function toast(msg) {
@@ -137,6 +138,13 @@ async function openDetail(gameId) {
     <p>成员：${g.participants.map((p) => p.nickname).join('、') || '暂无'}</p>
     <button class="primary" id="joinBtn">${g.joinedByMe ? '取消报名' : (g.joinedCount >= g.totalSpots ? '已满员' : '立即报名')}</button>`;
   $('#chatList').innerHTML = msgs.messages.map((m) => `<div class="msg"><b>${m.nickname}：</b>${m.text}</div>`).join('') || '<p class="hint">群里还没有消息。</p>';
+  // 没报名的人看得到群聊，但发不了言：直接在输入框上方写清楚，而不是点了发送才闪一下报错
+  currentGameJoined = !!g.joinedByMe;
+  $('#chatInput').disabled = !currentGameJoined;
+  $('#chatSend').disabled = !currentGameJoined;
+  const hint = $('#chatHint');
+  if (currentGameJoined) { hint.hidden = true; }
+  else { hint.textContent = '你是游客，先点上面的「立即报名」加入这局，才能在群里发言。'; hint.hidden = false; }
   $('#detail').hidden = false;
   $('#joinBtn').onclick = async () => {
     try {
@@ -150,10 +158,20 @@ $('#detailClose').onclick = () => { $('#detail').hidden = true; };
 $('#chatSend').onclick = async () => {
   const text = $('#chatInput').value.trim();
   if (!text || !currentGameId) return;
+  if (!currentGameJoined) {
+    const hint = $('#chatHint');
+    hint.textContent = '先点上面的「立即报名」加入这局，才能在群里发言。';
+    hint.hidden = false; return;
+  }
+  const btn = $('#chatSend'); btn.disabled = true; btn.textContent = '发送中…';
   try {
     await api(`/api/games/${currentGameId}/messages`, { method: 'POST', body: JSON.stringify({ userId: me.id, text }) });
     $('#chatInput').value = ''; openDetail(currentGameId);
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    const hint = $('#chatHint');
+    hint.textContent = e.message || '发送失败，请重试。'; hint.hidden = false; toast(e.message);
+  }
+  btn.disabled = !currentGameJoined; btn.textContent = '发送';
 };
 
 // ---------- 发起 ----------

@@ -236,6 +236,21 @@ async function handleApi(req, res, url) {
   }
 
   // ---- 群聊消息：按局取 / 发送 ----
+  // ---- 局：删除（仅组织者可删，同时清理报名和群聊）----
+  const delMatch = url.pathname.match(/^\/api\/games\/([^/]+)$/);
+  if (delMatch && req.method === 'DELETE') {
+    const gameId = delMatch[1];
+    const g = db.games.find((x) => x.id === gameId);
+    if (!g) return sendJson(res, 404, { ok: false, error: '局不存在' });
+    const b = await readBody(req);
+    if (g.hostId !== b.userId) return sendJson(res, 403, { ok: false, error: '只有组织者可以删除这局' });
+    db.games = db.games.filter((x) => x.id !== gameId);
+    db.participants = db.participants.filter((p) => p.gameId !== gameId);
+    db.messages = db.messages.filter((m) => m.gameId !== gameId);
+    saveDb(db);
+    return sendJson(res, 200, { ok: true });
+  }
+
   const msgMatch = url.pathname.match(/^\/api\/games\/([^/]+)\/messages$/);
   if (msgMatch) {
     const gameId = msgMatch[1];
